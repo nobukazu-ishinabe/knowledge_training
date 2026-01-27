@@ -18,14 +18,26 @@ st.set_page_config(
 
 hide_streamlit_style = """
             <style>
-            /* ヘッダー（GitHubアイコンやバー）を隠す */
-            header {visibility: hidden;}
+            /* ヘッダー（上のバー）を消す */
+            header {
+                visibility: hidden !important;
+                height: 0px !important;
+            }
             
-            /* フッター（Made with Streamlit）を隠す */
-            footer {visibility: hidden;}
+            /* フッター（Created by / Hosted with Streamlit）を消す */
+            footer {
+                visibility: hidden !important;
+                display: none !important;
+                height: 0px !important;
+            }
             
-            /* (任意) 右上のハンバーガーメニューも隠したい場合はコメントアウトを外す */
-            /* #MainMenu {visibility: hidden;} */
+            /* その他、細かいデコレーションを消す */
+            [data-testid="stDecoration"] {
+                display: none !important;
+            }
+            [data-testid="stStatusWidget"] {
+                display: none !important;
+            }
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
