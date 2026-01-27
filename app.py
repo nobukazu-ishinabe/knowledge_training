@@ -109,7 +109,7 @@ def upload_to_drive(file_obj, filename):
 
 # 2. ログイン処理関数
 def login():
-    st.markdown("### 🔐 ログイン")
+    st.markdown("### 🔐 ログイン1")
     
     with st.form("login_form"):
         uid = st.text_input("ユーザーID")
