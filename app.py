@@ -16,6 +16,20 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+hide_streamlit_style = """
+            <style>
+            /* ヘッダー（GitHubアイコンやバー）を隠す */
+            header {visibility: hidden;}
+            
+            /* フッター（Made with Streamlit）を隠す */
+            footer {visibility: hidden;}
+            
+            /* (任意) 右上のハンバーガーメニューも隠したい場合はコメントアウトを外す */
+            /* #MainMenu {visibility: hidden;} */
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 # Gemini設定
 genai.configure(api_key=st.secrets["general"]["gemini_api_key"])
 model = genai.GenerativeModel('gemini-2.5-flash-lite')
