@@ -8,72 +8,110 @@ from datetime import datetime, timedelta
 import io
 
 # ==========================================
-# 設定と準備
+# 1. アプリ設定とプロンプト定義 (★ここを編集)
 # ==========================================
 st.set_page_config(
-    page_title="画像解析アプリ", 
+    page_title="課題解決スキル向上研修", 
     layout="centered", 
     initial_sidebar_state="collapsed"
 )
 
+# ▼▼▼ プロンプト定義エリア ▼▼▼
+PROMPT_TEMPLATE = """
+# 命令書
+あなたは、大手企業の経営企画室に所属する「戦略策定のプロフェッショナル」です。
+現在、社員の「課題設定能力（Issue definition）」を養う研修を行っており、受講者が「ゴール（To-Be）」「現在地（As-Is）」「ギャップ（Gap）」を定義した画像をアップロードします。
+画像内のテキストを読み取り、認識した内容を提示した上で、その定義品質を厳格に評価・フィードバックしてください。
+
+# コンセプト
+「不鮮明な地図では、ゴールには辿り着けない」
+（解決策を考える前に、地図＝課題定義が正確かを確認するフェーズです）
+
+# 解析プロセス
+1.  **画像認識:** 画像内に書かれているテキストを正確に読み取る。
+2.  **要素分類:** 読み取ったテキストを「目的地」「現在地」「ギャップ」に分類する。
+3.  **厳格評価:** その定義がビジネスレベル（数値・事実・構造化）に達しているか評価する。
+
+# 出力フォーマット
+
+## 📝 読み取り内容の確認
+画像から以下のテキストを認識しました。誤りがないか確認してください。
+- **目的地 (Goal):** [画像から読み取ったテキストをそのまま記述]
+- **現在地 (Current):** [画像から読み取ったテキストをそのまま記述]
+- **ギャップ (Gap):** [画像から読み取ったテキストをそのまま記述]
+
+---
+
+## 🗺️ 課題定義マップの「鮮明度」判定（S/A/B/C）
+**判定：[ここにランクを表示]**
+
+> **ランク定義**
+> - **S (承認 - Clear):** 座標（数値）が鮮明で、構造的なギャップが特定されている。即座に解決策の検討へ進める。
+> - **A (条件付承認 - Good):** 概ね良いが、一部の数値根拠や言語化に甘さが残る。
+> - **B (要再設定 - Foggy):** 定性的な表現（形容詞）が多く、このまま進むと遭難するリスクがある。
+> - **C (視界不良 - Unclear):** 単なる願望や感想レベル。地図として機能していない。
+
+---
+
+## 🧭 戦略プロフェッショナルからのフィードバック
+### 1. 目的地の視認性
+[「売上を上げる」等の曖昧さを排し、KGI/KPIなどの数値目標になっているか評価]
+
+### 2. 現在地の正確性
+[事実・データに基づいているか、主観や思い込み（解釈）が混ざっていないか評価]
+
+### 3. ギャップの深さ
+[表面的な事象ではなく、構造的な真因（ボトルネック）を捉えているか評価]
+
+---
+
+## ✏️ 【修正案】プロが描く「鮮明な地図」
+あなたの定義を、ビジネスで通用するレベル（KPI/Factベース）に書き換えるとこうなります：
+- **目的地:** [数値を明確にした修正案]
+- **現在地:** [客観的事実を用いた修正案]
+- **ギャップ:** [構造的な真因を特定した修正案]
+
+## ⚔️ 次のフェーズに進むための「問い」
+[この定義が正しいと仮定した上で、解決策（How）を考える前に自問すべき、核心を突く質問を1つ]
+"""
+# ▲▲▲ プロンプト定義エリア ▲▲▲
+
+# UI調整用CSS
 hide_streamlit_style = """
-                <style>
-                div[data-testid="stToolbar"] {
-                visibility: hidden;
-                height: 0%;
-                position: fixed;
-                }
-                div[data-testid="stDecoration"] {
-                visibility: hidden;
-                height: 0%;
-                position: fixed;
-                }
-                #MainMenu {
-                visibility: hidden;
-                height: 0%;
-                }
-                header {
-                visibility: hidden;
-                height: 0%;
-                }
-                footer {
-                visibility: hidden;
-                height: 0%;
-                }
-				        .appview-container .main .block-container{
-                            padding-top: 1rem;
-                            padding-right: 3rem;
-                            padding-left: 3rem;
-                            padding-bottom: 1rem;
-                        }  
-                        .reportview-container {
-                            padding-top: 0rem;
-                            padding-right: 3rem;
-                            padding-left: 3rem;
-                            padding-bottom: 0rem;
-                        }
-                        header[data-testid="stHeader"] {
-                            z-index: -1;
-                        }
-                        div[data-testid="stToolbar"] {
-                        z-index: 100;
-                        }
-                        div[data-testid="stDecoration"] {
-                        z-index: 100;
-                        }
-                </style>
+            <style>
+            header {visibility: hidden !important;}
+            footer {visibility: hidden !important; display: none !important;}
+            [data-testid="stDecoration"] {display: none !important;}
+            [data-testid="stStatusWidget"] {display: none !important;}
+            
+            /* Primaryボタン(赤)を青色に上書き */
+            button[kind="primary"] {
+                background-color: #0068C9 !important;
+                border-color: #0068C9 !important;
+                color: white !important;
+            }
+            /* ホバー時の色（少し濃い青） */
+            button[kind="primary"]:hover {
+                background-color: #0053a0 !important;
+                border-color: #0053a0 !important;
+                color: white !important;
+            }
+            </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # Gemini設定
-genai.configure(api_key=st.secrets["general"]["gemini_api_key"])
-model = genai.GenerativeModel('gemini-2.5-flash-lite')
+if "general" in st.secrets and "gemini_api_key" in st.secrets["general"]:
+    genai.configure(api_key=st.secrets["general"]["gemini_api_key"])
+    model = genai.GenerativeModel('gemini-2.5-flash-lite')
+else:
+    st.error("Secrets設定エラー: gemini_api_keyが見つかりません。")
 
 # ==========================================
-# 関数定義
+# 2. 関数定義
 # ==========================================
 
-# 1. Google Driveへのアップロード関数 (改良版)
+# Google Driveへのアップロード関数
 def upload_to_drive(file_obj, filename):
     try:
         creds_dict = dict(st.secrets["connections"]["gsheets"])
@@ -92,24 +130,39 @@ def upload_to_drive(file_obj, filename):
         from googleapiclient.http import MediaIoBaseUpload
         media_body = MediaIoBaseUpload(media, mimetype=file_obj.type)
 
-        # supportsAllDrives=True を追加（共有ドライブ対応のため）
         file = service.files().create(
             body=file_metadata,
             media_body=media_body,
             fields='id, webViewLink',
-            supportsAllDrives=True 
+            supportsAllDrives=True
         ).execute()
         
         return file.get('webViewLink')
         
     except Exception as e:
-        # エラーを表示するが、Noneを返して処理を止めない
         print(f"Drive Upload Error: {e}") 
         return None
 
-# 2. ログイン処理関数
+# ユーザー情報の取得・更新関数
+def get_user_data(conn, username):
+    df = conn.read(worksheet="Users", ttl=0)
+    
+    if 'first_login' not in df.columns:
+        df['first_login'] = ""
+    if 'feedback_result' not in df.columns:
+        df['feedback_result'] = ""
+    
+    df = df.fillna("")
+    
+    user_rows = df[df['username'].astype(str) == username]
+    
+    if not user_rows.empty:
+        return df, user_rows.index[0]
+    return df, None
+
+# ログイン処理関数
 def login():
-    st.markdown("### 🔐 ログイン1")
+    st.markdown("### 🔐 研修アプリ ログイン")
     
     with st.form("login_form"):
         uid = st.text_input("ユーザーID")
@@ -120,10 +173,10 @@ def login():
             conn = st.connection("gsheets", type=GSheetsConnection)
             try:
                 df = conn.read(worksheet="Users", ttl=0)
-                if 'first_login' not in df.columns:
-                    df['first_login'] = ""
-                
-                # ID/Pass照合
+                if 'first_login' not in df.columns: df['first_login'] = ""
+                if 'feedback_result' not in df.columns: df['feedback_result'] = ""
+                df = df.fillna("")
+
                 match_indices = df.index[
                     (df['username'].astype(str) == uid) & 
                     (df['password'].astype(str) == password)
@@ -136,7 +189,7 @@ def login():
                     is_valid = False
                     needs_update = False
                     
-                    if current_first_login == "" or current_first_login == "nan" or pd.isna(df.at[idx, 'first_login']):
+                    if current_first_login == "":
                         now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         df.at[idx, 'first_login'] = now_str
                         is_valid = True
@@ -144,7 +197,8 @@ def login():
                     else:
                         try:
                             first_login_dt = datetime.strptime(current_first_login, '%Y-%m-%d %H:%M:%S')
-                            if datetime.now() - first_login_dt < timedelta(hours=24):
+                            #if datetime.now() - first_login_dt < timedelta(hours=24):
+                            if datetime.now() - first_login_dt < timedelta(hours=720):
                                 is_valid = True
                         except:
                             is_valid = False
@@ -157,77 +211,135 @@ def login():
                         st.session_state['user_id'] = uid
                         st.rerun()
                     else:
-                        st.error("IDまたはパスワードが間違っています")
+                        st.error("IDまたはパスワードが間違っています（有効期限切れ）")
                 else:
                     st.error("IDまたはパスワードが間違っています")
             except Exception as e:
                 st.error(f"システムエラー: {e}")
 
 # ==========================================
-# メイン処理フロー
+# 3. メイン処理フロー
 # ==========================================
 
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
+if 'is_retry' not in st.session_state:
+    st.session_state['is_retry'] = False
 
 if not st.session_state['logged_in']:
     login()
 else:
-    # --- メインアプリ画面 ---
+    # --- ログイン後の画面 ---
+    
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    try:
+        df, user_idx = get_user_data(conn, st.session_state['user_id'])
+        
+        if user_idx is not None:
+            saved_feedback = str(df.at[user_idx, 'feedback_result'])
+        else:
+            saved_feedback = ""
+            st.error("ユーザー情報の取得に失敗しました")
+            st.stop()
+            
+    except Exception as e:
+        st.error(f"データ取得エラー: {e}")
+        st.stop()
+
+    # ヘッダー
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.write(f"User: **{st.session_state['user_id']}**")
+        st.write(f"受講者: **{st.session_state['user_id']}**")
     with col2:
         if st.button("ログアウト", key="logout_btn", use_container_width=True):
             st.session_state['logged_in'] = False
+            st.session_state['is_retry'] = False
+            st.rerun()
+    st.markdown("---")
+
+    # === 画面分岐 ===
+    if saved_feedback and not st.session_state['is_retry']:
+        st.title("✅ 評価フィードバック")
+        st.success("前回の提出に対するAI評価です")
+        
+        with st.container(border=True):
+            st.markdown(saved_feedback)
+            
+        st.markdown("---")
+        st.write("課題を修正して、再度提出する場合は下のボタンを押してください。")
+        if st.button("🔄 修正して再提出する", type="primary", use_container_width=True):
+            st.session_state['is_retry'] = True
             st.rerun()
 
-    st.markdown("---")
-    st.title("🤖 画像解析")
-    
-    with st.container(border=True):
-        st.write("📸 **解析する画像を選択**")
-        uploaded_file = st.file_uploader("", type=['png', 'jpg', 'jpeg'], label_visibility="collapsed")
-
-    if uploaded_file:
-        st.image(uploaded_file, caption='プレビュー', use_container_width=True)
+    else:
+        st.title("📝 課題提出")
         
-        if st.button("🚀 解析を開始する", type="primary", use_container_width=True):
-            
-            with st.status("実行中...", expanded=True) as status:
-                
-                # A. Geminiで解析 (Drive保存より先に実行)
-                status.write("✨ 画像を解析中...")
-                gemini_success = False
-                try:
-                    bytes_data = uploaded_file.getvalue()
-                    image_parts = [{"mime_type": uploaded_file.type, "data": bytes_data}]
-                    prompt = "この画像を詳しく解析し、何が写っているか日本語で説明してください。"
-                    response = model.generate_content([prompt, image_parts[0]])
-                    analysis_text = response.text
-                    gemini_success = True
-                except Exception as e:
-                    st.error(f"Gemini解析エラー: {e}")
+        with st.container(border=True):
+            st.markdown("#### 📌 提出要件")
+            st.write("以下の3点が記載された画像をアップロードしてください。")
+            st.markdown("""
+            1. **目的 (Goal)**：あるべき姿、目指す状態
+            2. **現在地 (Current)**：現状の課題、事実
+            3. **ギャップ (Gap)**：目的と現在地の間にある問題点、阻害要因
+            """)
+            with st.expander("👀 記入例を見る（クリックして開く）"):
+                st.markdown("""
+                **例：チームビルディングの課題**
+                * **目的**：若手社員が自発的に意見を出し、活気あるチームにする。
+                * **現在地**：会議で発言するのはリーダーだけで、若手は指示待ちになっている。
+                * **ギャップ**：若手に自信がなく、間違ったことを言うのを恐れている。心理的安全性がない。
+                """)
 
-                # B. Driveへ保存 (失敗しても解析結果は出す)
-                drive_link = None
-                if gemini_success:
-                    status.write("📂 Driveへバックアップ保存中...")
-                    drive_link = upload_to_drive(uploaded_file, uploaded_file.name)
-                    
-                    if drive_link:
-                        status.write("✅ 保存完了")
-                    else:
-                        status.write("⚠️ Drive保存スキップ (容量制限など)")
+        st.write("")
+        uploaded_file = st.file_uploader("課題ファイルをアップロード", type=['png', 'jpg', 'jpeg'])
+
+        if uploaded_file:
+            st.image(uploaded_file, caption='プレビュー', use_container_width=True)
+            
+            btn_label = "🚀 AI評価を実行する" if not saved_feedback else "🚀 再評価を実行する"
+            
+            if st.button(btn_label, type="primary", use_container_width=True):
                 
-                # 完了処理
-                status.update(label="完了!", state="complete", expanded=False)
+                analysis_text = ""
                 
-                if gemini_success:
-                    st.success("解析結果")
-                    st.markdown(analysis_text)
+                # withブロックの中は「処理中」の表示だけにする
+                with st.status("AI講師が評価中...", expanded=True) as status:
                     
-                    if drive_link:
-                        st.link_button("📂 保存された画像を開く (Drive)", drive_link, use_container_width=True)
-                    else:
-                        st.caption("※今回は画像ファイルはDriveに保存されませんでしたが、解析は成功しました。")
+                    # A. Gemini解析
+                    status.write("🧠 画像を解析し、ロジックを評価中...")
+                    
+                    try:
+                        bytes_data = uploaded_file.getvalue()
+                        image_parts = [{"mime_type": uploaded_file.type, "data": bytes_data}]
+                        
+                        # 定義したプロンプトを使用
+                        response = model.generate_content([PROMPT_TEMPLATE, image_parts[0]])
+                        
+                        analysis_text = response.text
+                    except Exception as e:
+                        st.error(f"AI解析エラー: {e}")
+                        status.update(label="解析エラー", state="error")
+                        st.stop()
+
+                    # B. Drive保存
+                    status.write("📂 提出履歴を保存中...")
+                    drive_link = upload_to_drive(uploaded_file, f"{st.session_state['user_id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uploaded_file.name}")
+                    
+                    # C. スプレッドシート保存
+                    status.write("💾 評価シートを更新中...")
+                    try:
+                        df.at[user_idx, 'feedback_result'] = analysis_text
+                        conn.update(worksheet="Users", data=df)
+                    except Exception as e:
+                        st.error(f"保存エラー: {e}")
+                    
+                    status.update(label="評価完了！", state="complete", expanded=False)
+                
+                # ▼▼▼ 修正箇所: ここをwithブロックの外に出しました ▼▼▼
+                st.success("評価が完了しました")
+                st.markdown("### 📝 AI講師からのフィードバック")
+                st.markdown(analysis_text)
+                
+                # 再評価フラグをリセット
+                st.session_state['is_retry'] = False
+
